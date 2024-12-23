@@ -1,4 +1,6 @@
-# Instructions for Training the EBAR and EBAE Models
+# Qwen2Vec: Adapting Qwen for Dense Retrieval
+
+## Instructions for Training the EBAR and EBAE Models
 
 Follow these steps to train Qwen-2.5-0.5B with the EBAR and EBAE training method from the following paper:
 'Llama2Vec: Unsupervised Adaptation of Large Language Models for Dense Retrieval'
