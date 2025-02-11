@@ -11,6 +11,8 @@ from transformers import DataCollatorWithPadding
 import sys
 print("Executable: ", sys.executable)
 
+STORAGE_DIR = os.getenv("STORAGE_DIR")      # /media/discoexterno/leon/qwen-2-vec
+
 
 class CustomDataCollator(DataCollatorWithPadding):
     """
@@ -175,9 +177,11 @@ def main(model_name, chunks, seq_length, batch_size, learning_rate, epochs, next
     train_dataset = Subset(full_dataset, train_indices)
     eval_dataset = Subset(full_dataset, eval_indices)
 
+    output_dir = os.path.join(STORAGE_DIR, "output-model")
+
     # Define training arguments.
     training_args = TrainingArguments(
-        output_dir="./output-model",
+        output_dir=output_dir,
         num_train_epochs=epochs,
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
@@ -211,9 +215,9 @@ def main(model_name, chunks, seq_length, batch_size, learning_rate, epochs, next
     trainer.train()
 
     # Save the model and tokenizer.
-    torch.save(trainer.state.log_history, "training_metrics_hf.pth")
+    torch.save(trainer.state.log_history, os.path.join(STORAGE_DIR, "training_metrics_hf.pth"))
     trainer.save_model()
-    tokenizer.save_pretrained("./output-model")
+    tokenizer.save_pretrained(output_dir)
 
 
 if __name__ == "__main__":
