@@ -9,3 +9,11 @@ myenv/
 *.pth
 
 *.pkl
+
+*.log
+
+output-model/
+
+__pycache__/
+
+.history/

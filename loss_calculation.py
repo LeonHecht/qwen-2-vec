@@ -32,14 +32,14 @@ def ebae_loss(model, input_ids, attention_mask, tokenizer, device):
     # Check if eos_positions is empty
     if eos_positions[0].numel() < input_ids.size(0):
         raise ValueError("Not all sequences in the batch contain the EOS token.")
-    last_token_embeddings = hidden_states[eos_positions]  # Shape: (batch_size, hidden_dim)
+    ebae_embeddings = hidden_states[eos_positions]  # Shape: (batch_size, hidden_dim)
 
     # Use input embedding weights
-    vocab_weights = model.get_input_embeddings().weight  # Shape: (vocab_size, hidden_dim)
+    vocab_weights = model.get_input_embeddings().weight.to(device)  # Shape: (vocab_size, hidden_dim)
     vocab_weights_T = vocab_weights.T  # Transpose for (hidden_dim, vocab_size)
 
     # Compute eT * W_v (logits for full vocabulary)
-    vocab_logits = torch.einsum("bh,hv->bv", last_token_embeddings, vocab_weights_T)  # Shape: (batch_size, vocab_size)
+    vocab_logits = torch.einsum("bh,hv->bv", ebae_embeddings, vocab_weights_T)  # Shape: (batch_size, vocab_size)
 
     # Compute log softmax over the full vocabulary
     log_prob_vocab = torch.log_softmax(vocab_logits, dim=1)  # Log-probabilities for vocabulary (batch_size, vocab_size)
@@ -132,9 +132,55 @@ def ebae_ebar_loss(model, input_ids, next_input_ds, tokenizer, device):
     ebar_avg_loss = -ebar_sum_log_prob_seq.mean()
 
     # Combine losses for EBAE and EBAR
-    combined_loss = ebae_avg_loss + ebar_avg_loss / 2
+    combined_loss = (ebae_avg_loss + ebar_avg_loss) / 2
+
+    print(f"EBAE loss: {ebae_avg_loss.item()}, EBAR loss: {ebar_avg_loss.item()}")
 
     return combined_loss
+
+
+def ebae_loss2(model, input_ids, attention_mask, tokenizer, device):
+    """
+    Computes the combined EBAE and EBAR loss for the input sequence.
+
+    :param model: Hugging Face model (e.g., LLaMA)
+    :param input_ids: Tokenized input IDs
+    :param attention_mask: Attention mask for the input
+    :param tokenizer: Hugging Face tokenizer
+    :param device: Device to run the computations (e.g., "cuda" or "cpu")
+    :return: Combined loss value
+    """
+
+    # Move data to device
+    input_ids = input_ids.to(device)
+
+    attention_mask = attention_mask.to(device)
+
+    # Forward pass through the model
+    outputs = model(input_ids=input_ids, attention_mask=attention_mask, output_hidden_states=True)
+    hidden_states = outputs.hidden_states[-1]  # Last hidden layer (batch_size, seq_length, hidden_dim)
+
+    # Find the positions of the <\s> tokens (EBAE and EBAR positions)
+    sep_positions = (input_ids == tokenizer.eos_token_id).nonzero(as_tuple=True)
+    assert sep_positions[0].numel() == input_ids.size(0), "Each sequence must have one <\s> tokens."
+
+    # Extract embeddings for the first and second <\s> tokens
+    ebae_embeddings = hidden_states[sep_positions]  # Shape: (batch_size, hidden_dim)
+    
+    # Use input embedding weights
+    vocab_weights = model.get_input_embeddings().weight.to(device)  # Shape: (vocab_size, hidden_dim)
+    vocab_weights_T = vocab_weights.T  # Transpose for (hidden_dim, vocab_size)
+
+    # Compute vocab logits for EBAE
+    ebae_vocab_logits = torch.einsum("bh,hv->bv", ebae_embeddings, vocab_weights_T)  # Shape: (batch_size, vocab_size)
+    ebae_log_prob_vocab = torch.log_softmax(ebae_vocab_logits, dim=1)
+    ebae_log_prob_seq = ebae_log_prob_vocab.gather(dim=1, index=input_ids)
+    ebae_sum_log_prob_seq = ebae_log_prob_seq.sum(dim=1)
+    ebae_avg_loss = -ebae_sum_log_prob_seq.mean()
+
+    print(f"EBAE loss: {ebae_avg_loss.item()}")
+
+    return ebae_avg_loss
 
 
 import torch
