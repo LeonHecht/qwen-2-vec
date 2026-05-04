@@ -3,7 +3,9 @@
 ## Instructions for Training the EBAR and EBAE Models
 
 Follow these steps to train Qwen-2.5-0.5B with the EBAR and EBAE training method from the following paper:
-'Llama2Vec: Unsupervised Adaptation of Large Language Models for Dense Retrieval'
+'Llama2Vec: Unsupervised Adaptation of Large Language Models for Dense Retrieval'.
+
+The idea is to use continuous pretraining on Wikipedia to train the model to compress the meaning of the entire input text into a special <EOS> token, just as Bert-like encoder model do with the CLS token. So the goal is to use the abilities of the autoregressive LLM to encode the meaning of the input text. The training loss consists of having the model predict all tokens of the input text.
 
 ---
 
